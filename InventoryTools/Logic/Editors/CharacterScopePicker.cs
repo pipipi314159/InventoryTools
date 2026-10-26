@@ -246,12 +246,13 @@ public class CharacterScopeCalculator
         return searchScope.Invert ? !secondLevelMatch : secondLevelMatch;
     }
 
-    public uint Count(IEnumerable<CharacterSearchScope> searchScopes, uint itemId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags itemFlags = FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)
+    // TW port: returns long (was uint) so totals above 4,294,967,295 / 2,147,483,647 (e.g. gil) don't overflow.
+    public long Count(IEnumerable<CharacterSearchScope> searchScopes, uint itemId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags itemFlags = FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)
     {
-        return (uint)searchScopes.Sum(c => Count(c, itemId, itemFlags));
+        return searchScopes.Sum(c => Count(c, itemId, itemFlags));
     }
 
-    public uint Count(CharacterSearchScope searchScope, uint itemId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags itemFlags = FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)
+    public long Count(CharacterSearchScope searchScope, uint itemId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags itemFlags = FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)
     {
         var characterIds = new HashSet<Character>();
 
@@ -331,7 +332,7 @@ public class CharacterScopeCalculator
             }
         }
 
-        return (uint)characterIds.Select(c => _inventoryMonitor.CharacterItemCounts.GetValueOrDefault((itemId, itemFlags, c.CharacterId), 0)).Sum(c => c);
+        return characterIds.Select(c => (long)_inventoryMonitor.CharacterItemCounts.GetValueOrDefault((itemId, itemFlags, c.CharacterId), 0)).Sum();
     }
 }
 

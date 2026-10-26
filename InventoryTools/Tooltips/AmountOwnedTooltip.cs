@@ -111,7 +111,7 @@ public class AmountOwnedTooltip : BaseTooltip
 
 
 
-            uint storageCount = 0;
+            long storageCount = 0; // TW port: was uint, overflowed for large totals (e.g. gil)
             List<string> locations = new List<string>();
 
             if (Configuration.TooltipLocationDisplayMode ==
@@ -182,7 +182,7 @@ public class AmountOwnedTooltip : BaseTooltip
                 foreach (var oGroup in groupedItems)
                 {
                     var quantity = oGroup.Sum(c => c.Quantity);
-                    storageCount += (uint)quantity;
+                    storageCount += quantity;
 
                     if (locations.Count >= Configuration.TooltipLocationLimit)
                         continue;
@@ -219,7 +219,7 @@ public class AmountOwnedTooltip : BaseTooltip
                 foreach (var oGroup in groupedItems)
                 {
                     var quantity = oGroup.Sum(c => c.Quantity);
-                    storageCount += (uint)quantity;
+                    storageCount += quantity;
 
                     if (locations.Count >= Configuration.TooltipLocationLimit)
                         continue;

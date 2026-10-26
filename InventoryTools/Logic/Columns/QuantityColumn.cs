@@ -6,6 +6,7 @@ using CriticalCommonLib.Services.Mediator;
 using DalaMock.Host.Mediator;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Dalamud.Bindings.ImGui;
+using InventoryTools.Extensions;
 using InventoryTools.Logic.Columns.Abstract;
 using InventoryTools.Logic.Columns.ColumnSettings;
 using InventoryTools.Services;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace InventoryTools.Logic.Columns
 {
-    public class QuantityColumn : IntegerColumn
+    public class QuantityColumn : LongColumn
     {
         private readonly IInventoryMonitor _inventoryMonitor;
         private readonly CharacterScopePickerColumnSetting _scopePickerColumnSetting;
@@ -31,53 +32,48 @@ namespace InventoryTools.Logic.Columns
             this.FilterSettings.Add(qualitySelectorSetting);
         }
         public override ColumnCategory ColumnCategory => ColumnCategory.Inventory;
-        public override int? CurrentValue(ColumnConfiguration columnConfiguration, SearchResult searchResult)
+        public override long? CurrentValue(ColumnConfiguration columnConfiguration, SearchResult searchResult)
         {
             if (searchResult.CuratedItem != null)
             {
-                return (int)searchResult.CuratedItem.Quantity;
+                return searchResult.CuratedItem.Quantity;
             }
             if (searchResult.InventoryItem != null)
             {
-                return (int)searchResult.InventoryItem.Quantity;
+                return searchResult.InventoryItem.Quantity;
             }
 
             var qualitySetting = _qualitySelectorSetting.CurrentValue(columnConfiguration)?.Select(c => c.Item1).ToList() ?? null;
 
+            // TW port: totals are summed as 64-bit so they don't overflow past 2,147,483,647 (e.g. gil).
             var scopes = _scopePickerColumnSetting.CurrentValue(columnConfiguration);
             if (scopes != null)
             {
                 if (qualitySetting != null)
                 {
-                    return (int)qualitySetting.Sum(c => _scopeCalculator.Count(scopes, searchResult.ItemId, c));
+                    return qualitySetting.Sum(c => (long)_scopeCalculator.Count(scopes, searchResult.ItemId, c));
                 }
                 else
                 {
-                    return (int)_scopeCalculator.Count(scopes, searchResult.ItemId) + (int)_scopeCalculator.Count(scopes, searchResult.ItemId, InventoryItem.ItemFlags.HighQuality);
+                    return (long)_scopeCalculator.Count(scopes, searchResult.ItemId) + (long)_scopeCalculator.Count(scopes, searchResult.ItemId, InventoryItem.ItemFlags.HighQuality);
                 }
             }
             else
             {
-                var qty = 0;
-                if ((qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.None)) && _inventoryMonitor.ItemCounts.ContainsKey((searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)))
+                long qty = 0;
+                if (qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.None))
                 {
-                    qty += _inventoryMonitor.ItemCounts[(searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)];
+                    qty += _inventoryMonitor.GetTotalItemCount(searchResult.Item.RowId, InventoryItem.ItemFlags.None);
                 }
 
-                if ((qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.HighQuality)) && _inventoryMonitor.ItemCounts.ContainsKey((searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.HighQuality)))
+                if (qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.HighQuality))
                 {
-                    qty += _inventoryMonitor.ItemCounts[(searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.HighQuality)];
+                    qty += _inventoryMonitor.GetTotalItemCount(searchResult.Item.RowId, InventoryItem.ItemFlags.HighQuality);
                 }
 
-                if ((qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.Collectable)) && _inventoryMonitor.ItemCounts.ContainsKey((searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.Collectable)))
+                if (qualitySetting == null || qualitySetting.Contains(InventoryItem.ItemFlags.Collectable))
                 {
-                    qty += _inventoryMonitor.ItemCounts[(searchResult.Item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.Collectable)];
+                    qty += _inventoryMonitor.GetTotalItemCount(searchResult.Item.RowId, InventoryItem.ItemFlags.Collectable);
                 }
 
                 return qty;

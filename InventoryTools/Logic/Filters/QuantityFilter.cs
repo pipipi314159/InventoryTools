@@ -44,20 +44,10 @@ namespace InventoryTools.Logic.Filters
             var currentValue = CurrentValue(configuration);
             if (!string.IsNullOrEmpty(currentValue))
             {
-                var qty = 0;
-                if (_inventoryMonitor.ItemCounts.ContainsKey((item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)))
-                {
-                    qty += _inventoryMonitor.ItemCounts[(item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)];
-                }
-                if (_inventoryMonitor.ItemCounts.ContainsKey((item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.HighQuality)))
-                {
-                    qty += _inventoryMonitor.ItemCounts[(item.RowId,
-                        FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.HighQuality)];
-                }
-                if (!qty.PassesFilter(currentValue.ToLower()))
+                // TW port: summed as 64-bit so totals above 2,147,483,647 (e.g. gil) don't overflow.
+                long qty = _inventoryMonitor.GetTotalItemCount(item.RowId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.None)
+                           + _inventoryMonitor.GetTotalItemCount(item.RowId, FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags.HighQuality);
+                if (!((decimal)qty).PassesFilter(currentValue.ToLower()))
                 {
                     return false;
                 }
